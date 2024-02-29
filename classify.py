@@ -10,9 +10,8 @@ rfid_reader = SimpleMFRC522()
 
 
 
-# Load the model once at the start of your script
 model = load_model('/home/daniel/myproject/model/material_classification_model.pth')
-GPIO.cleanup()# Setup for the ultrasonic sensor
+GPIO.cleanup()
 GPIO.setmode(GPIO.BCM)
 TRIG = 23
 ECHO = 24
@@ -49,21 +48,24 @@ def send_disposal_event(rfid_id, material, disposal_time):
     data = {
         'rfid_id': rfid_id,
         'material': material,
-        'disposal_time': disposal_time  # Pass disposal_time as a string in "YYYY-MM-DD HH:MM:SS" format
+        'disposal_time': disposal_time  
     }
     response = requests.post(url, json=data)
     return response.ok
 
-def send_measured_distance(measured_distance):
-    url = 'http://172.20.10.4:8000/api/fill_level/'
+def send_distance_update(distance):
+    url = 'http://172.20.10.4:8000/api/bin_status/'
     data = {
-        'measured_distance': measured_distance
+        'distance': distance,
+        'update_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
     }
     response = requests.post(url, json=data)
-    return response.ok
+    print("Distance update sent" if response.ok else "Failed to send distance update")
+
 
 try:
     print('Starting measurement')
+    last_sent_time = time.time()
     while True:
         distance = get_distance()
         print(f'Distance: {distance} cm')
@@ -91,6 +93,10 @@ try:
                 print("Disposal event logged successfully.")
             else:
                 print("Failed to log disposal event.")
+
+        if time.time() - last_sent_time >= 300: 
+            send_distance_update(distance)
+            last_sent_time = time.time()
                 
         time.sleep(1)
 
