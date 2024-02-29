@@ -69,7 +69,6 @@ try:
     while True:
         distance = get_distance()
         print(f'Distance: {distance} cm')
-        send_measured_distance(distance)
         
         if distance < 20:
             print("Please scan your RFID tag")
