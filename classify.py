@@ -8,8 +8,6 @@ from mfrc522 import SimpleMFRC522
 
 rfid_reader = SimpleMFRC522()
 
-
-
 model = load_model('/home/daniel/myproject/model/material_classification_model.pth')
 GPIO.cleanup()
 GPIO.setmode(GPIO.BCM)
@@ -38,6 +36,14 @@ def get_distance():
     
     return distance
 
+def calculate_fill_percentage(distance, empty=66, full=32):
+    if distance >= empty:
+        return 0
+    elif distance <= full:
+        return 100
+    else:
+        return round((1 - (distance - full) / (empty - full)) * 100, 2)
+
 def capture_image(file_name):
     file_path = f"/home/daniel/myproject/captured_images/{file_name}"
     command = ["libcamera-still", "-o", file_path]
@@ -54,22 +60,24 @@ def send_disposal_event(rfid_id, material, disposal_time):
     return response.ok
 
 def send_distance_update(distance):
+    fill_percentage = calculate_fill_percentage(distance)
     url = 'http://172.20.10.4:8000/api/bin_status/'
     data = {
-        'distance': distance,
+        'fill_percentage': fill_percentage,
         'update_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
     }
     response = requests.post(url, json=data)
-    print("Distance update sent" if response.ok else "Failed to send distance update")
-
+    print("Fill percentage update sent" if response.ok else "Failed to send fill percentage update")
 
 try:
     print('Starting measurement')
-    last_sent_time = time.time()
+    last_sent_time = time.time() - 30  # Adjusted to immediately send on first loop
     while True:
         distance = get_distance()
         print(f'Distance: {distance} cm')
-        
+        fill_percentage = calculate_fill_percentage(distance)
+        print(f'Fill Percentage: {fill_percentage}%')
+
         if distance < 20:
             print("Please scan your RFID tag")
             user_id, _ = rfid_reader.read()
@@ -93,7 +101,7 @@ try:
             else:
                 print("Failed to log disposal event.")
 
-        if time.time() - last_sent_time >= 300: 
+        if time.time() - last_sent_time >= 30:  # Updated to 30 seconds
             send_distance_update(distance)
             last_sent_time = time.time()
                 
