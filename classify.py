@@ -63,7 +63,7 @@ def send_distance_update(distance):
     fill_percentage = calculate_fill_percentage(distance)
     url = 'http://172.20.10.4:8000/api/bin_status/'
     data = {
-        'fill_percentage': fill_percentage,
+        'distance': fill_percentage,
         'update_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
     }
     response = requests.post(url, json=data)
